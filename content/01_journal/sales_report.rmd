@@ -1,0 +1,358 @@
+---
+title: "Sales Report"
+author: "Gabriel Storch"
+date: "7/27/2024"
+output:
+  html_document:
+    code_folding: none
+    df_print: paged
+    highlight: tango
+    number_sections: yes
+    theme: flatly
+    toc: yes
+    toc_depth: 2
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+    df_print: 'paged'
+always_allow_html: true
+---
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+```{r, echo=FALSE}
+# INTERACTIVE PLOTS ----
+
+# GOAL: DEVELOP INTERACTIVE PLOTS FOR A SALES REPORT
+
+# LIBRARIES & DATA ----
+suppressPackageStartupMessages({
+  # Main
+library(tidyverse)
+library(lubridate)
+library(knitr)
+# Visualization
+library(plotly)
+})
+
+
+bikes_tbl      <- readRDS("01_data/bikes_tbl.rds")
+bikeshops_tbl  <- readRDS("01_data/bikeshops_tbl.rds")
+orderlines_tbl <- readRDS("01_data/orderlines_tbl.rds")
+
+bike_orderlines_tbl <- orderlines_tbl %>%
+    left_join(bikes_tbl,     by = c("product_id" = "bike_id")) %>%
+    left_join(bikeshops_tbl, by = c("customer_id" = "bikeshop_id")) %>%
+    
+    # Add the total price
+    mutate(total_price = price_euro * quantity)
+```
+
+```{r, echo=FALSE}
+format_to_euro <- function(x, suffix = " €") {
+
+  scales::dollar(x,
+                 suffix       = suffix,
+                 prefix       = "",
+                 big.mark     = ".",
+                 decimal.mark = ",")
+}
+
+euro_format <- function(scale        = 1,
+                        prefix       = "",
+                        suffix       = " €",
+                        big.mark     = ".",
+                        decimal.mark = ",") {
+
+  scales::dollar_format(suffix       = suffix,
+                        prefix       = prefix,
+                        big.mark     = big.mark,
+                        decimal.mark = decimal.mark,
+                        scale        = scale)
+
+}
+```
+
+# Total Sales Charts {.tabset .tabset-fade .tabset-pills}
+
+## Quarterly Sales Trends
+
+```{r echo=FALSE, results='hide'}
+
+total_sales_m_tbl <- bike_orderlines_tbl %>%
+
+  select(order_date, total_price) %>%
+
+  mutate(date_rounded = floor_date(order_date, unit = "quarter")) %>%
+
+  group_by(date_rounded) %>%
+  summarise(total_sales = sum(total_price)) %>%
+  ungroup() %>%
+
+  mutate(label_text = str_glue("Sales: {format_to_euro(total_sales)}
+                                 Date: {date_rounded %>% format('%B %Y')}"))
+suppressWarnings(
+  {
+    g1 <- total_sales_m_tbl %>%
+  ggplot(aes(x = date_rounded, y = total_sales)) +
+
+  # Geoms
+  geom_point() +
+  geom_smooth(formula = 'y ~ x', method = "loess", span = 0.2) +
+
+  # Formatting
+  
+  # Convert scale to euro format
+  scale_y_continuous(labels = euro_format()) +
+  
+  # Make sure 0 will always be shown (even if the data is far away)
+  expand_limits(y = 0) +
+  
+  labs(
+    title = "Total Sales",
+    y = "Revenue (EUR)",
+    x = ""
+  )
+    
+  }
+)
+
+
+g1
+```
+
+## Monthly Sales Trends
+
+```{r echo=FALSE}
+# 1.0 TOTAL SALES BY MONTH ----
+
+# 1.1 Preparing Time Series Data ----
+# Monthly
+
+suppressWarnings({total_sales_m_tbl <- bike_orderlines_tbl %>%
+
+  select(order_date, total_price) %>%
+
+  mutate(date_rounded = floor_date(order_date, unit = "month")) %>%
+
+  group_by(date_rounded) %>%
+  summarise(total_sales = sum(total_price)) %>%
+  ungroup() %>%
+
+  mutate(label_text = str_glue("Sales: {format_to_euro(total_sales)}
+                                 Date: {date_rounded %>% format('%B %Y')}"))
+
+g1 <- total_sales_m_tbl %>%
+  ggplot(aes(x = date_rounded, y = total_sales)) +
+
+  # Geoms
+  geom_point() +
+  geom_smooth(formula = 'y ~ x', method = "loess", span = 0.2) +
+
+  # Formatting
+  
+  # Convert scale to euro format
+  scale_y_continuous(labels = euro_format()) +
+  
+  # Make sure 0 will always be shown (even if the data is far away)
+  expand_limits(y = 0) +
+  
+  labs(
+    title = "Total Sales",
+    y = "Revenue (EUR)",
+    x = ""
+  )
+})
+g1
+```
+
+## Weekly Sales Trends
+
+```{r echo=FALSE}
+# 1.0 TOTAL SALES BY MONTH ----
+
+# 1.1 Preparing Time Series Data ----
+# Monthly
+
+suppressWarnings({total_sales_m_tbl <- bike_orderlines_tbl %>%
+
+  select(order_date, total_price) %>%
+
+  mutate(date_rounded = floor_date(order_date, unit = "week")) %>%
+
+  group_by(date_rounded) %>%
+  summarise(total_sales = sum(total_price)) %>%
+  ungroup() %>%
+
+  mutate(label_text = str_glue("Sales: {format_to_euro(total_sales)}
+                                 Date: {date_rounded %>% format('%B %Y')}"))
+
+g1 <- total_sales_m_tbl %>%
+  ggplot(aes(x = date_rounded, y = total_sales)) +
+
+  # Geoms
+  geom_point() +
+  geom_smooth(formula = 'y ~ x', method = "loess", span = 0.2) +
+
+  # Formatting
+  
+  # Convert scale to euro format
+  scale_y_continuous(labels = euro_format()) +
+  
+  # Make sure 0 will always be shown (even if the data is far away)
+  expand_limits(y = 0) +
+  
+  labs(
+    title = "Total Sales",
+    y = "Revenue (EUR)",
+    x = ""
+  )
+})
+g1
+```
+
+```{r echo=FALSE}
+# 2.3 Plot Categories Function ----
+
+plot_categories <- function(category_1 = "All", category_2 = "All",
+                            unit = "month", date_format = "%B %Y",
+                            ncol = 1, scales = "free_y",
+                            interactive = TRUE) {
+
+  # Handle Data
+
+  data_tbl <- bike_orderlines_tbl %>%
+    select(order_date, category_1, category_2, total_price) %>%
+    mutate(date_rounded = floor_date(order_date, unit = unit)) %>%
+
+    group_by(date_rounded, category_1, category_2) %>%
+    summarise(total_sales = sum(total_price)) %>%
+    ungroup() %>%
+
+    mutate(label_text = str_glue("Sales: {format_to_euro(total_sales)}
+                                 Date: {date_rounded %>% format(date_format)}")) %>%
+
+    mutate(category_2 = as_factor(category_2) %>%
+             fct_reorder2(date_rounded, total_sales))
+
+  # Handle Inputs
+  cat_1_text <- str_to_lower(category_1)
+  cat_2_text <- str_to_lower(category_2)
+
+  # Create Filter Logic
+  if (cat_1_text != "all") {
+    data_tbl <- data_tbl %>%
+      filter(category_1 %>%
+               str_to_lower() %>%
+               str_detect(pattern = cat_1_text))
+  }
+
+  if (cat_2_text != "all") {
+    data_tbl <- data_tbl %>%
+      filter(category_2 %>%
+               str_to_lower() %>%
+               str_detect(pattern = cat_2_text))
+  }
+
+  # Make Plot
+  g2 <- data_tbl %>%
+    ggplot(aes(x = date_rounded, y = total_sales, color = category_2)) +
+
+    # Geoms
+    geom_point(aes(text = label_text), color = "#2c3e50") +
+    geom_smooth(method = "loess", span = 0.2) +
+    facet_wrap(~ category_2, scales = scales, ncol = ncol) +
+
+    # Formatting
+    expand_limits(y = 0) +
+    theme(legend.position = "none",
+          strip.text.x = element_text(margin = margin(5, 5, 5, 5, unit = "pt"))) +
+    scale_y_continuous(labels = euro_format(scale = 1e-3, suffix = "K €")) +
+    labs(
+      title = "Sales By Category 2",
+      y = "", x = ""
+    )
+
+  # Static Vs Interactive Logic
+  if (interactive) {
+    return(ggplotly(g2, tooltip = "text"))
+  } else {
+    return(g2)
+  }
+
+}
+```
+
+
+# Category Sales Charts {.tabset .tabset-fade .tabset-pills}
+
+## Road {.tabset .tabset-fade}
+
+### Quarterly 
+```{r echo=FALSE}
+plot_categories(category_1 = "All", 
+                category_2 = "(Triathlon|Race|Cyclo|Endurance)", 
+                unit = "quarter",
+                ncol = 1, 
+                scales = "free_y", 
+                date_format = "%Y-%m-%d",
+                interactive = is_html_output())
+```
+
+### Monthly
+```{r echo=FALSE}
+plot_categories(category_1 = "All", 
+                category_2 = "(Triathlon|Race|Cyclo|Endurance)", 
+                unit = "month",
+                ncol = 1, 
+                scales = "free_y", 
+                date_format = "%Y-%m-%d",
+                interactive = is_html_output())
+```
+
+### Weekly
+```{r echo=FALSE}
+plot_categories(category_1 = "All", 
+                category_2 = "(Triathlon|Race|Cyclo|Endurance)", 
+                unit = "week",
+                ncol = 1, 
+                scales = "free_y", 
+                date_format = "%Y-%m-%d",
+                interactive = is_html_output())
+```
+
+## Mountain {.tabset .tabset-fade}
+
+### Quarterly 
+```{r echo=FALSE}
+plot_categories(category_1 = "All", 
+                category_2 = "(Trail|Cross-Country|Enduro|Downhill|Fat|Dirt)", 
+                unit = "quarter",
+                ncol = 1, 
+                scales = "free_y", 
+                date_format = "%Y-%m-%d",
+                interactive = is_html_output())
+```
+
+### Monthly
+```{r echo=FALSE}
+plot_categories(category_1 = "All", 
+                category_2 = "(Trail|Cross-Country|Enduro|Downhill|Fat|Dirt)", 
+                unit = "month",
+                ncol = 1, 
+                scales = "free_y", 
+                date_format = "%Y-%m-%d",
+                interactive = is_html_output())
+```
+
+### Weekly
+```{r echo=FALSE}
+plot_categories(category_1 = "All", 
+                category_2 = "(Trail|Cross-Country|Enduro|Downhill|Fat|Dirt)", 
+                unit = "week",
+                ncol = 1, 
+                scales = "free_y", 
+                date_format = "%Y-%m-%d",
+                interactive = is_html_output())
+```
