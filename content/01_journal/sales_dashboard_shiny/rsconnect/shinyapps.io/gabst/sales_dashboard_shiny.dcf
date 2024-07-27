@@ -1,0 +1,12 @@
+name: sales_dashboard_shiny
+title: sales_dashboard_shiny
+username: gabst
+account: gabst
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 12372100
+bundleId: 8914077
+url: https://gabst.shinyapps.io/sales_dashboard_shiny/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
